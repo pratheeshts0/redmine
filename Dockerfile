@@ -98,15 +98,15 @@ run cp ssl.conf /etc/apache2/sites-available/
 run a2ensite ssl.conf
 run a2dissite default-ssl.conf
 
-workdir /usr
-run git clone https://github.com/pratheeshts0/redmine.git
-run cp /usr/redmine/plugins/*.bz2 /usr/share/redmine/plugins/
+#workdir /usr
+#run git clone https://github.com/pratheeshts0/redmine.git
+#run cp /usr/redmine/plugins/*.bz2 /usr/share/redmine/plugins/
 
-run tar xfj /usr/share/redmine/plugins/*.bz2 -C /usr/share/redmine/plugins/ || pwd
+#run tar xfj /usr/share/redmine/plugins/*.bz2 -C /usr/share/redmine/plugins/ || pwd
 
-workdir /usr/share/redmine/
-run chown -R www-data:www-data plugins/
-run rake redmine:plugins:migrate RAILS_ENV=production
+#workdir /usr/share/redmine/
+#run chown -R www-data:www-data plugins/
+#run rake redmine:plugins:migrate RAILS_ENV=production
 
 
 EXPOSE 80
