@@ -111,5 +111,5 @@ run rake redmine:plugins:migrate RAILS_ENV=production
 
 EXPOSE 80
 EXPOSE 443
-entrypoint service apache2 restart && bash
+entrypoint service apache2 restart && tail -f /dev/null && bash
 
