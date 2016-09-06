@@ -1,0 +1,238 @@
+HowTo Install Redmine 2.5.x on Ubuntu 14.04 with Apache2 Phusion Passenger MySQL and Subversion
+
+    HowTo Install Redmine 2.5.x on Ubuntu 14.04 with Apache2 Phusion Passenger MySQL and Subversion
+        Installing dependencies
+        Installing Subversion
+        Installing Ruby and Ruby on Rails
+        Installing of Redmine
+            Redmine
+            MySQL
+            Configuration
+        Installing Phusion Passenger
+            Add repository
+            Installing
+            Configuration
+        Start Redmine
+        e-Mail configuration
+        Autoupdate Subversion repository view
+
+Installing dependencies
+
+sudo apt-get update && sudo apt-get upgrade -y
+
+sudo apt-get install apache2 php5 libapache2-mod-php5 mysql-server php5-mysql phpmyadmin libapache2-mod-perl2 libcurl4-openssl-dev libssl-dev apache2-prefork-dev libapr1-dev libaprutil1-dev libmysqlclient-dev libmagickcore-dev libmagickwand-dev curl git-core patch build-essential bison zlib1g-dev libssl-dev libxml2-dev libxml2-dev sqlite3 libsqlite3-dev autotools-dev libxslt1-dev libyaml-0-2 autoconf automake libreadline6-dev libyaml-dev libtool imagemagick apache2-utils
+
+I don't know if every package needed, but it works.
+Installing Subversion
+
+sudo apt-get install subversion libapache2-svn
+
+sudo mkdir -p /var/lib/svn
+sudo chown -R www-data:www-data /var/lib/svn
+sudo a2enmod dav_svn
+
+Open config file
+
+sudo nano /etc/apache2/mods-enabled/dav_svn.conf
+
+Uncomment following lines
+
+<Location /svn>
+    DAV svn
+    SVNParentPath /var/lib/svn
+    AuthType Basic
+    AuthName "My repository" 
+    AuthUserFile /etc/apache2/dav_svn.passwd
+    AuthzSVNAccessFile /etc/apache2/dav_svn.authz
+    <LimitExcept GET PROFIND OPTIONS REPORT>
+    Require valid-user
+    </LimitExcept>
+</Location>
+
+sudo a2enmod authz_svn
+
+Add the redmine user for reading from repository
+
+sudo htpasswd -c /etc/apache2/dav_svn.passwd redmine
+
+sudo service apache2 restart
+
+Create the repository
+
+sudo svnadmin create --fs-type fsfs /var/lib/svn/my_repository
+sudo chown -R www-data:www-data /var/lib/svn
+
+Open file for configuration of repository access
+
+sudo nano /etc/apache2/dav_svn.authz
+
+Add access rights for redmine to the repository in the config file
+
+[my_repository:/]
+redmine = r
+
+Installing Ruby and Ruby on Rails
+
+sudo apt-get install ruby1.9.3 ruby1.9.1-dev ri1.9.1 libruby1.9.1 libssl-dev zlib1g-dev
+sudo update-alternatives --install /usr/bin/ruby ruby /usr/bin/ruby1.9.1 400 \
+         --slave   /usr/share/man/man1/ruby.1.gz ruby.1.gz \
+                        /usr/share/man/man1/ruby1.9.1.1.gz \
+        --slave   /usr/bin/ri ri /usr/bin/ri1.9.1 \
+        --slave   /usr/bin/irb irb /usr/bin/irb1.9.1 \
+        --slave   /usr/bin/rdoc rdoc /usr/bin/rdoc1.9.1
+
+sudo gem update
+sudo gem install bundler
+
+Installing of Redmine
+Redmine
+
+Exampe for version 2.5.2, change the version number for other releases
+
+cd /usr/share
+sudo wget http://www.redmine.org/releases/redmine-2.5.2.tar.gz
+sudo tar xvfz redmine-2.5.2.tar.gz
+sudo rm redmine-2.5.2.tar.gz
+sudo mv redmine-2.5.2 redmine
+sudo chown -R root:root /usr/share/redmine
+sudo chown www-data /usr/share/redmine/config/environment.rb
+sudo ln -s /usr/share/redmine/public /var/www/html/redmine
+
+MySQL
+
+mysql -u root -p
+
+Execute following lines to MySQL
+
+CREATE DATABASE redmine character SET utf8;
+CREATE user 'redmine'@'localhost' IDENTIFIED BY 'my_password';
+GRANT ALL privileges ON redmine.* TO 'redmine'@'localhost';
+exit
+
+Configure Redmine database connection
+
+sudo cp redmine/config/database.yml.example redmine/config/database.yml
+
+Open database config file
+
+sudo nano redmine/config/database.yml
+
+Change the username and the password in the config file
+
+database.yml:
+production:
+ adapter: mysql2
+ database: redmine
+ host: localhost
+ username: redmine
+ password: my_password
+ encoding: utf8
+
+Configuration
+
+cd /usr/share/redmine/
+sudo bundle install --without development test postgresql sqlite
+sudo rake generate_secret_token
+sudo RAILS_ENV=production rake db:migrate 
+sudo RAILS_ENV=production rake redmine:load_default_data
+sudo mkdir public/plugin_assets
+sudo chown -R www-data:www-data files log tmp public/plugin_assets
+sudo chmod -R 755 files log tmp public/plugin_assets
+
+Installing Phusion Passenger
+Add repository
+
+Add repository for Phusion Passenger
+
+sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 561F9B9CAC40B2F7
+sudo apt-get install apt-transport-https ca-certificates
+
+Open repository config file
+
+sudo nano /etc/apt/sources.list.d/passenger.list
+
+Add following repository source
+
+deb https://oss-binaries.phusionpassenger.com/apt/passenger trusty main
+
+sudo chown root: /etc/apt/sources.list.d/passenger.list
+sudo chmod 600 /etc/apt/sources.list.d/passenger.list
+
+Installing
+
+sudo apt-get update
+sudo apt-get install libapache2-mod-passenger
+
+Configuration
+
+Open passenger config file
+
+sudo nano /etc/apache2/mods-available/passenger.conf
+
+Add following line to passenger config file
+
+PassengerDefaultUser www-data
+
+Open apache2 config file
+
+sudo nano /etc/apache2/sites-available/000-default.conf
+
+Add following part to apache2 config file
+
+<Directory /var/www/html/redmine>
+    RailsBaseURI /redmine
+    PassengerResolveSymlinksInDocumentRoot on
+</Directory>
+
+sudo a2enmod passenger
+sudo service apache2 restart
+
+Start Redmine
+
+Remine should now available at your host
+
+http://yourhost/redmine
+
+Login data:
+Username: admin
+Password: admin
+e-Mail configuration
+
+Example for smtp and encryption
+
+Open redmine config file
+
+sudo nano /usr/share/redmine/config/configuration.yml
+
+Add following to redmine config file
+
+# Outgoing email settings
+
+production:
+  email_delivery:
+    delivery_method: :smtp
+    smtp_settings:
+      enable_starttls_auto: true
+      address: smtp.host.com
+      port: 587
+      domain: host.com
+      authentication: :login
+      user_name: myname
+      password: mypassword
+
+You can check the e-Mail config in web interface with testmail function
+Autoupdate Subversion repository view
+
+In the project archive settings over web interface its needed to enable the web service for project archives and generate a api key
+
+The following cronjob updates redmine to current subversion changesets every 15 minutes
+
+sudo crontab -e
+
+Add the cronjob
+
+*/15 *    * * * curl "http://yourhost/redmine/sys/fetch_changesets?key=APIKEY" > /dev/null
+
+If your hosting does not offer cron job configuration then you can use external services like these:
+https://www.easycron.com.
+Powered by Redmine © 2006-2014 Jean-Philippe Lang
