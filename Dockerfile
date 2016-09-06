@@ -126,5 +126,5 @@ run a2dissite default-ssl.conf
 
 EXPOSE 80
 EXPOSE 443
-entrypoint service apache2 restart && bash  
+entrypoint service apache2 restart && bash  && tail -f /dev/null
 
